@@ -1,0 +1,12 @@
+
+code.zip
+data/graph-data
+data/mol_graphs
+tmp_code/
+softmax_L2_ver/
+code/Attention_outputs
+code/GCN_outputs
+code/MLP_outputs
+code/__pycache__
+Text2Mol_full_data.zip
+
