@@ -28,8 +28,9 @@ class GenerateData():
     self.text_trunc_length = text_trunc_length 
 
     self.prep_text_tokenizer()
-    
-    self.load_substructures()
+
+    if path_molecules is not None:  
+      self.load_substructures()
 
 
     self.store_descriptions()

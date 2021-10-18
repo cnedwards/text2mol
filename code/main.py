@@ -136,10 +136,15 @@ for epoch in range(epochs):
 
         if MODEL == "MLP":
             text_out, chem_out = model(text, molecule, text_mask)
+        
+            loss = contrastive_loss(text_out, chem_out).to(device)
+            running_loss += loss.item()
         elif MODEL == "GCN":
             graph_batch = graph_batcher_tr(d[0]['molecule']['cid']).to(device)
             text_out, chem_out = model(text, graph_batch, text_mask)
-
+        
+            loss = contrastive_loss(text_out, chem_out).to(device)
+            running_loss += loss.item()
         elif MODEL == "Attention":
             graph_batch, molecule_mask = graph_batcher_tr(d[0]['molecule']['cid'])
             graph_batch = graph_batch.to(device)
@@ -154,15 +159,13 @@ for epoch in range(epochs):
             running_acc += np.sum((pred.squeeze().cpu().detach().numpy() > 0) == labels.cpu().detach().numpy()) / labels.shape[0]
             
         
-        loss = contrastive_loss(text_out, chem_out).to(device)
-        
         running_loss += loss.item()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         
         scheduler.step()
-        break
+        
         if (i+1) % 100 == 0: print(i+1, "batches trained. Avg loss:\t", running_loss / (i+1), ". Avg ms/step =", 1000*(time.time()-start_time)/(i+1))
     train_losses.append(running_loss / (i+1))
     train_acc.append(running_acc / (i+1))
@@ -190,13 +193,15 @@ for epoch in range(epochs):
 
             if MODEL == "MLP":
                 text_out, chem_out = model(text, molecule, text_mask)
+        
+                loss = contrastive_loss(text_out, chem_out).to(device)
+                running_loss += loss.item()
             elif MODEL == "GCN":
                 graph_batch = graph_batcher_val(d[0]['molecule']['cid']).to(device)
                 text_out, chem_out = model(text, graph_batch, text_mask)
             
                 loss = contrastive_loss(text_out, chem_out).to(device)
                 running_loss += loss.item()
-
             elif MODEL == "Attention":
                 graph_batch, molecule_mask = graph_batcher_val(d[0]['molecule']['cid'])
                 graph_batch = graph_batch.to(device)
@@ -213,7 +218,7 @@ for epoch in range(epochs):
         val_losses.append(running_loss / (i+1))
         val_acc.append(running_acc / (i+1))
 
-        break
+        
         min_loss = np.min(val_losses)
         if val_losses[-1] == min_loss:
             torch.save(model.state_dict(), output_path + 'weights_pretrained.{epoch:02d}-{min_loss:.2f}.pt'.format(epoch = epoch+1, min_loss = min_loss))
@@ -258,7 +263,10 @@ if MODEL != "Attention": #Store embeddings:
 
     for i, d in enumerate(gd.generate_examples_train()):
 
-        cid, chem_emb, text_emb = get_emb(d, graph_batcher_tr)
+        if MODEL == "MLP":
+            cid, chem_emb, text_emb = get_emb(d)
+        elif MODEL == "GCN":
+            cid, chem_emb, text_emb = get_emb(d, graph_batcher_tr)
 
         cids_train = np.concatenate((cids_train, cid)) if cids_train.size else cid
         chem_embeddings_train = np.concatenate((chem_embeddings_train, chem_emb)) if chem_embeddings_train.size else chem_emb
@@ -271,7 +279,10 @@ if MODEL != "Attention": #Store embeddings:
 
     for d in gd.generate_examples_val():
         
-        cid, chem_emb, text_emb = get_emb(d, graph_batcher_val)
+        if MODEL == "MLP":
+            cid, chem_emb, text_emb = get_emb(d)
+        elif MODEL == "GCN":
+            cid, chem_emb, text_emb = get_emb(d, graph_batcher_val)
 
         cids_val = np.concatenate((cids_val, cid)) if cids_val.size else cid
         chem_embeddings_val = np.concatenate((chem_embeddings_val, chem_emb)) if chem_embeddings_val.size else chem_emb
@@ -281,7 +292,10 @@ if MODEL != "Attention": #Store embeddings:
 
     for d in gd.generate_examples_test():
         
-        cid, chem_emb, text_emb = get_emb(d, graph_batcher_test)
+        if MODEL == "MLP":
+            cid, chem_emb, text_emb = get_emb(d)
+        elif MODEL == "GCN":
+            cid, chem_emb, text_emb = get_emb(d, graph_batcher_test)
 
         cids_test = np.concatenate((cids_test, cid)) if cids_test.size else cid
         chem_embeddings_test = np.concatenate((chem_embeddings_test, chem_emb)) if chem_embeddings_test.size else chem_emb
