@@ -8,8 +8,11 @@ import pickle
 
 import numpy as np
 
+import matplotlib.pyplot as plt
 
 import torch
+from torch import nn
+import torch.nn.functional as F
 
 import torch.optim as optim
 from transformers.optimization import get_linear_schedule_with_warmup
@@ -48,6 +51,7 @@ args = parser.parse_args()
 data_path = args.data
 output_path = args.output_path
 MODEL = args.model
+if MODEL != "MLP": "Only MLP parallel is tested."
 
 BATCH_SIZE = args.batch_size
 epochs = args.epochs
@@ -80,6 +84,11 @@ if MODEL == "MLP":
     training_generator, validation_generator, test_generator = get_dataloader(gd, params)
 
     model = MLPModel(ninp = 768, nhid = 600, nout = 300)
+    
+    if torch.cuda.device_count() > 1:
+        print("Multiple GPUs")
+        model = nn.DataParallel(model)
+
 
 elif MODEL == "GCN":
     gd = GenerateData(text_trunc_length, path_train, path_val, path_test, path_molecules, path_token_embs)
@@ -93,6 +102,10 @@ elif MODEL == "GCN":
     graph_batcher_tr, graph_batcher_val, graph_batcher_test = get_graph_data(gd, graph_data_path)
 
     model = GCNModel(num_node_features=graph_batcher_tr.dataset.num_node_features, ninp = 768, nhid = 600, nout = 300, graph_hidden_channels = 600)
+
+    if torch.cuda.device_count() > 1:
+        print("Multiple GPUs")
+        model = nn.DataParallel(model)
 
 elif MODEL == "Attention":
     gd = GenerateDataAttention(text_trunc_length, path_train, path_val, path_test, path_molecules, path_token_embs)
@@ -108,6 +121,9 @@ elif MODEL == "Attention":
     model = AttentionModel(num_node_features=graph_batcher_tr.dataset.num_node_features, ninp = 768, nout = 300, nhead = 8, nhid = 512, nlayers = 3, 
         graph_hidden_channels = 768, mol_trunc_length=mol_trunc_length, temp=0.07)
 
+    if torch.cuda.device_count() > 1:
+        print("Multiple GPUs")
+        model = nn.DataParallel(model)
 
 
 bert_params = list(model.text_transformer_model.parameters())
@@ -160,13 +176,13 @@ for epoch in range(epochs):
 
         if MODEL == "MLP":
             text_out, chem_out = model(text, molecule, text_mask)
-        
+                    
             loss = contrastive_loss(text_out, chem_out).to(device)
             running_loss += loss.item()
         elif MODEL == "GCN":
             graph_batch = graph_batcher_tr(d[0]['molecule']['cid']).to(device)
             text_out, chem_out = model(text, graph_batch, text_mask)
-        
+                    
             loss = contrastive_loss(text_out, chem_out).to(device)
             running_loss += loss.item()
         elif MODEL == "Attention":
@@ -217,7 +233,7 @@ for epoch in range(epochs):
 
             if MODEL == "MLP":
                 text_out, chem_out = model(text, molecule, text_mask)
-        
+                        
                 loss = contrastive_loss(text_out, chem_out).to(device)
                 running_loss += loss.item()
             elif MODEL == "GCN":
@@ -226,6 +242,7 @@ for epoch in range(epochs):
             
                 loss = contrastive_loss(text_out, chem_out).to(device)
                 running_loss += loss.item()
+
             elif MODEL == "Attention":
                 graph_batch, molecule_mask = graph_batcher_val(d[0]['molecule']['cid'])
                 graph_batch = graph_batch.to(device)
@@ -302,7 +319,6 @@ if MODEL != "Attention": #Store embeddings:
     print("Training Embeddings done:", cids_train.shape, chem_embeddings_train.shape)
 
     for d in gd.generate_examples_val():
-        
         if MODEL == "MLP":
             cid, chem_emb, text_emb = get_emb(d)
         elif MODEL == "GCN":
@@ -315,7 +331,7 @@ if MODEL != "Attention": #Store embeddings:
     print("Validation Embeddings done:", cids_val.shape, chem_embeddings_val.shape)
 
     for d in gd.generate_examples_test():
-        
+
         if MODEL == "MLP":
             cid, chem_emb, text_emb = get_emb(d)
         elif MODEL == "GCN":

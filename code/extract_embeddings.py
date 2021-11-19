@@ -8,8 +8,10 @@ import pickle
 
 import numpy as np
 
+import matplotlib.pyplot as plt
 
 import torch
+import torch.nn.functional as F
 
 import torch.optim as optim
 from transformers.optimization import get_linear_schedule_with_warmup
@@ -20,45 +22,40 @@ from models import MLPModel, GCNModel, AttentionModel
 from dataloaders import get_dataloader, GenerateData, get_graph_data, get_attention_graph_data, GenerateDataAttention, get_attention_dataloader
 
 
+text_trunc_length = 256
+
+mol_trunc_length = 512 #attention model only
+
+
+
 import argparse
 
-parser = argparse.ArgumentParser(description='Run Text2Mol')
+parser = argparse.ArgumentParser(description='Extract embeddings from a given model checkpoint.')
 parser.add_argument('--data', metavar='data', type=str, 
                     help='directory where data is located')
-parser.add_argument('--output_path', metavar='output_path', type=str,
+parser.add_argument('--output_path', metavar='output_path', type=str, 
                     help='directory where data is located')
+parser.add_argument('--checkpoint', type=str,
+                    help='path to checkpoint file')
 parser.add_argument('--model', type=str, default='MLP', nargs='?',
                     help="model type from 'MLP, 'GCN', 'Attention'")
+parser.add_argument('--batch_size', type=int, default=32,
+                    help='Size of data batch.')
 parser.add_argument('--mol_trunc_length', type=int, nargs='?', default=512,
                     help='Molecule truncation length.')
 parser.add_argument('--text_trunc_length', type=int, nargs='?', default=256,
                     help='Text truncation length.')
-parser.add_argument('--num_warmup_steps', type=int, nargs='?', default=1000,
-                    help='Number of warmup steps.')
-parser.add_argument('--epochs', type=int, default=40,
-                    help='Number of epochs to train model.')
-parser.add_argument('--batch_size', type=int, default=32,
-                    help='Size of data batch.')
-parser.add_argument('--lr', type=float, nargs='?', default=1e-4,
-                    help='learning rate')
-parser.add_argument('--bert_lr', type=float, nargs='?', default=3e-5,
-                    help='Size of data batch.')
 
-args = parser.parse_args()  
+args = parser.parse_args()
 data_path = args.data
 output_path = args.output_path
+CHECKPOINT = args.checkpoint
 MODEL = args.model
 
 BATCH_SIZE = args.batch_size
-epochs = args.epochs
 
-init_lr = args.lr
-bert_lr = args.bert_lr
-num_warmup_steps = args.num_warmup_steps
 text_trunc_length = args.text_trunc_length
-
 mol_trunc_length = args.mol_trunc_length #attention model only
-
 
 path_token_embs = osp.join(data_path, "token_embedding_dict.npy")
 path_train = osp.join(data_path, "training.txt")
@@ -67,7 +64,6 @@ path_test = osp.join(data_path, "test.txt")
 path_molecules = osp.join(data_path, "ChEBI_defintions_substructure_corpus.cp")
 
 graph_data_path = osp.join(data_path, "mol_graphs.zip")
-
 
 
 if MODEL == "MLP":
@@ -110,17 +106,6 @@ elif MODEL == "Attention":
 
 
 
-bert_params = list(model.text_transformer_model.parameters())
-
-optimizer = optim.Adam([
-                {'params': model.other_params},
-                {'params': bert_params, 'lr': bert_lr}
-            ], lr=init_lr)
-
-num_training_steps = epochs * len(training_generator) - num_warmup_steps
-scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps = num_warmup_steps, num_training_steps = num_training_steps) 
-
-
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 print(device)
@@ -130,128 +115,8 @@ if MODEL == "Attention":
 else:
     tmp = model.to(device)
 
-
-train_losses = []
-val_losses = []
-
-train_acc = []
-val_acc = []
-
-if not os.path.exists(output_path):
-  os.mkdir(output_path)
-
-# Loop over epochs
-for epoch in range(epochs):
-    # Training
-    
-    start_time = time.time()
-    running_loss = 0.0
-    running_acc = 0.0
-    model.train()
-    for i, d in enumerate(training_generator):
-        batch, labels = d
-        # Transfer to GPU
-        
-        text_mask = batch['text']['attention_mask'].bool()
-
-        text = batch['text']['input_ids'].to(device)
-        text_mask = text_mask.to(device)
-        molecule = batch['molecule']['mol2vec'].float().to(device)
-
-        if MODEL == "MLP":
-            text_out, chem_out = model(text, molecule, text_mask)
-        
-            loss = contrastive_loss(text_out, chem_out).to(device)
-            running_loss += loss.item()
-        elif MODEL == "GCN":
-            graph_batch = graph_batcher_tr(d[0]['molecule']['cid']).to(device)
-            text_out, chem_out = model(text, graph_batch, text_mask)
-        
-            loss = contrastive_loss(text_out, chem_out).to(device)
-            running_loss += loss.item()
-        elif MODEL == "Attention":
-            graph_batch, molecule_mask = graph_batcher_tr(d[0]['molecule']['cid'])
-            graph_batch = graph_batch.to(device)
-            molecule_mask = molecule_mask.to(device)
-            labels = labels.float().to(device)
-            text_out, chem_out = model(text, graph_batch, text_mask, molecule_mask)
-
-            loss, pred = negative_sampling_contrastive_loss(text_out, chem_out, labels)
-            if torch.isnan(loss): raise ValueError('Loss is NaN.')
-    
-            running_loss += loss.item()
-            running_acc += np.sum((pred.squeeze().cpu().detach().numpy() > 0) == labels.cpu().detach().numpy()) / labels.shape[0]
-            
-        
-        running_loss += loss.item()
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-        scheduler.step()
-        
-        if (i+1) % 100 == 0: print(i+1, "batches trained. Avg loss:\t", running_loss / (i+1), ". Avg ms/step =", 1000*(time.time()-start_time)/(i+1))
-    train_losses.append(running_loss / (i+1))
-    train_acc.append(running_acc / (i+1))
-
-    print("Epoch", epoch+1, "training loss:\t\t", running_loss / (i+1), ". Time =", (time.time()-start_time), "seconds.")
-    if MODEL == "Attention": print("Training Accuracy:", train_acc[-1])
-
-
-
-    # Validation
-    model.eval()
-    with torch.set_grad_enabled(False):
-        start_time = time.time()
-        running_loss = 0.0
-        running_acc = 0.0
-        for i, d in enumerate(validation_generator):
-            batch, labels = d
-            # Transfer to GPU
-        
-            text_mask = batch['text']['attention_mask'].bool()
-
-            text = batch['text']['input_ids'].to(device)
-            text_mask = text_mask.to(device)
-            molecule = batch['molecule']['mol2vec'].float().to(device)
-
-            if MODEL == "MLP":
-                text_out, chem_out = model(text, molecule, text_mask)
-        
-                loss = contrastive_loss(text_out, chem_out).to(device)
-                running_loss += loss.item()
-            elif MODEL == "GCN":
-                graph_batch = graph_batcher_val(d[0]['molecule']['cid']).to(device)
-                text_out, chem_out = model(text, graph_batch, text_mask)
-            
-                loss = contrastive_loss(text_out, chem_out).to(device)
-                running_loss += loss.item()
-            elif MODEL == "Attention":
-                graph_batch, molecule_mask = graph_batcher_val(d[0]['molecule']['cid'])
-                graph_batch = graph_batch.to(device)
-                molecule_mask = molecule_mask.to(device)
-                labels = labels.float().to(device)
-                text_out, chem_out = model(text, graph_batch, text_mask, molecule_mask)
-
-                loss, pred = negative_sampling_contrastive_loss(text_out, chem_out, labels)
-                running_loss += loss.item()
-                running_acc += np.sum((pred.squeeze().cpu().detach().numpy() > 0) == labels.cpu().detach().numpy()) / labels.shape[0]
-            
-            if (i+1) % 100 == 0: print(i+1, "batches eval. Avg loss:\t", running_loss / (i+1), ". Avg ms/step =", 1000*(time.time()-start_time)/(i+1))
-            
-        val_losses.append(running_loss / (i+1))
-        val_acc.append(running_acc / (i+1))
-
-        
-        min_loss = np.min(val_losses)
-        if val_losses[-1] == min_loss:
-            torch.save(model.state_dict(), output_path + 'weights_pretrained.{epoch:02d}-{min_loss:.2f}.pt'.format(epoch = epoch+1, min_loss = min_loss))
-        
-    print("Epoch", epoch+1, "validation loss:\t", running_loss / (i+1), ". Time =", (time.time()-start_time), "seconds.")
-    if MODEL == "Attention": print("Validation Accuracy:", val_acc[-1])
-
-
-torch.save(model.state_dict(), output_path + "final_weights."+str(epochs)+".pt")
+model.eval()
+model.load_state_dict(torch.load(CHECKPOINT))
 
 
 cids_train = np.array([])
@@ -302,7 +167,6 @@ if MODEL != "Attention": #Store embeddings:
     print("Training Embeddings done:", cids_train.shape, chem_embeddings_train.shape)
 
     for d in gd.generate_examples_val():
-        
         if MODEL == "MLP":
             cid, chem_emb, text_emb = get_emb(d)
         elif MODEL == "GCN":
@@ -315,7 +179,7 @@ if MODEL != "Attention": #Store embeddings:
     print("Validation Embeddings done:", cids_val.shape, chem_embeddings_val.shape)
 
     for d in gd.generate_examples_test():
-        
+
         if MODEL == "MLP":
             cid, chem_emb, text_emb = get_emb(d)
         elif MODEL == "GCN":
@@ -327,18 +191,17 @@ if MODEL != "Attention": #Store embeddings:
 
     print("Test Embeddings done:", cids_test.shape, chem_embeddings_test.shape)
 
-    emb_path = osp.join(output_path, "embeddings/")
-    if not os.path.exists(emb_path):
-        os.mkdir(emb_path)
-    np.save(emb_path+"cids_train.npy", cids_train)
-    np.save(emb_path+"cids_val.npy", cids_val)
-    np.save(emb_path+"cids_test.npy", cids_test)
-    np.save(emb_path+"chem_embeddings_train.npy", chem_embeddings_train)
-    np.save(emb_path+"chem_embeddings_val.npy", chem_embeddings_val)
-    np.save(emb_path+"chem_embeddings_test.npy", chem_embeddings_test)
-    np.save(emb_path+"text_embeddings_train.npy", text_embeddings_train)
-    np.save(emb_path+"text_embeddings_val.npy", text_embeddings_val)
-    np.save(emb_path+"text_embeddings_test.npy", text_embeddings_test)
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+    np.save(osp.join(output_path, "cids_train.npy"), cids_train)
+    np.save(osp.join(output_path, "cids_val.npy"), cids_val)
+    np.save(osp.join(output_path, "cids_test.npy"), cids_test)
+    np.save(osp.join(output_path, "chem_embeddings_train.npy"), chem_embeddings_train)
+    np.save(osp.join(output_path, "chem_embeddings_val.npy"), chem_embeddings_val)
+    np.save(osp.join(output_path, "chem_embeddings_test.npy"), chem_embeddings_test)
+    np.save(osp.join(output_path, "text_embeddings_train.npy"), text_embeddings_train)
+    np.save(osp.join(output_path, "text_embeddings_val.npy"), text_embeddings_val)
+    np.save(osp.join(output_path, "text_embeddings_test.npy"), text_embeddings_test)
 
 else: #Save association rules
     #Extract attention:

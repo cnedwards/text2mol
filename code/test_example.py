@@ -8,18 +8,10 @@ import pickle
 
 import numpy as np
 
-import matplotlib.pyplot as plt
-
-import torch
-import torch.nn.functional as F
-
-import torch.optim as optim
-from transformers.optimization import get_linear_schedule_with_warmup
-
-
-from losses import contrastive_loss, negative_sampling_contrastive_loss
 from models import MLPModel, GCNModel, AttentionModel
 from dataloaders import get_dataloader, GenerateData, get_graph_data, get_attention_graph_data, GenerateDataAttention, get_attention_dataloader
+
+import torch
 
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -44,11 +36,11 @@ CHECKPOINT = args.checkpoint
 MODEL = args.model
 
 #data_path = "../name_data"
-path_token_embs = None #osp.join(data_path, "token_embedding_dict.npy")
-path_train = osp.join(data_path, "mol2vec_ChEBI_20_training.txt")
-path_val = osp.join(data_path, "mol2vec_ChEBI_20_val.txt")
-path_test = osp.join(data_path, "mol2vec_ChEBI_20_test.txt")
-path_molecules = None #osp.join(data_path, "ChEBI_defintions_substructure_corpus.cp")
+path_token_embs = osp.join(data_path, "token_embedding_dict.npy")
+path_train = osp.join(data_path, "training.txt")
+path_val = osp.join(data_path, "val.txt")
+path_test = osp.join(data_path, "test.txt")
+path_molecules = osp.join(data_path, "ChEBI_defintions_substructure_corpus.cp")
 
 graph_data_path = osp.join(data_path, "mol_graphs.zip")
 
@@ -59,8 +51,6 @@ text_trunc_length = 256
 
 mol_trunc_length = 512 #attention model only
 
-#emb_dir = "../embeddings/"
-#CHECKPOINT = "../final_weights.720.pt"
 
 if MODEL == "MLP":
     gd = GenerateData(text_trunc_length, path_train, path_val, path_test, path_molecules, path_token_embs)
@@ -72,6 +62,34 @@ if MODEL == "MLP":
     training_generator, validation_generator, test_generator = get_dataloader(gd, params)
 
     model = MLPModel(ninp = 768, nhid = 600, nout = 300)
+
+elif MODEL == "GCN":
+    gd = GenerateData(text_trunc_length, path_train, path_val, path_test, path_molecules, path_token_embs)
+
+    # Parameters
+    params = {'batch_size': BATCH_SIZE,
+            'num_workers': 1}
+
+    training_generator, validation_generator, test_generator = get_dataloader(gd, params)
+    
+    graph_batcher_tr, graph_batcher_val, graph_batcher_test = get_graph_data(gd, graph_data_path)
+
+    model = GCNModel(num_node_features=graph_batcher_tr.dataset.num_node_features, ninp = 768, nhid = 600, nout = 300, graph_hidden_channels = 600)
+
+elif MODEL == "Attention":
+    print('Using the attention model here is not intended behavior.')
+    gd = GenerateDataAttention(text_trunc_length, path_train, path_val, path_test, path_molecules, path_token_embs)
+
+    # Parameters
+    params = {'batch_size': BATCH_SIZE,
+            'num_workers': 1}
+
+    training_generator, validation_generator, test_generator = get_attention_dataloader(gd, params)
+
+    graph_batcher_tr, graph_batcher_val, graph_batcher_test = get_attention_graph_data(gd, graph_data_path, mol_trunc_length)
+
+    model = AttentionModel(num_node_features=graph_batcher_tr.dataset.num_node_features, ninp = 768, nout = 300, nhead = 8, nhid = 512, nlayers = 3, 
+        graph_hidden_channels = 768, mol_trunc_length=mol_trunc_length, temp=0.07)
 
 
 if torch.cuda.is_available():
@@ -148,16 +166,11 @@ with torch.set_grad_enabled(False):
             text_out, chem_out = model(text, molecule, text_mask)
                     
         elif MODEL == "GCN":
-            graph_batch = graph_batcher_val(d[0]['molecule']['cid']).to(device)
-            text_out, chem_out = model(text, graph_batch, text_mask)
+            text_out, chem_out = model(text, None, text_mask)
         
 
         elif MODEL == "Attention":
-            graph_batch, molecule_mask = graph_batcher_val(d[0]['molecule']['cid'])
-            graph_batch = graph_batch.to(device)
-            molecule_mask = molecule_mask.to(device)
-            labels = labels.float().to(device)
-            text_out, chem_out = model(text, graph_batch, text_mask, molecule_mask)
+            text_out, chem_out = model(text, None, text_mask, None)
 
 
         name_emb = text_out.cpu().numpy()
