@@ -76,6 +76,12 @@ If you found our work useful, please cite:
 > }
 
 
+#### Data - *ChEBI-20*
+
+Data can be found in "data/". Files directly used in the dataloaders are "training.txt", "val.txt", and "test.txt". These include the CIDs (pubchem compound IDs), mol2vec embeddings, and ChEBI descriptions. SDF (structural data file) versions are also available. 
+
+Thanks to [PubChem](https://pubchem.ncbi.nlm.nih.gov/) and [ChEBI](https://www.ebi.ac.uk/chebi/) for freely providing access to their databases. 
+
 #### I'm still working on improving the repository.
 
 
