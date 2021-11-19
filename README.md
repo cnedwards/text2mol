@@ -5,6 +5,7 @@
 This is code for the paper [Text2Mol: Cross-Modal Molecule Retrieval with Natural Language Queries](https://aclanthology.org/2021.emnlp-main.47/)
 
 
+![Task Example](https://github.com/cnedwards/text2mol/blob/master/misc/task2.PNG?raw=true)
 
 ### Installation
 
@@ -77,3 +78,5 @@ If you found our work useful, please cite:
 
 #### I'm still working on improving the repository.
 
+
+![Poster](Text2Mol_EMNLP_poster.png?raw=true)
