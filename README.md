@@ -31,7 +31,6 @@ For ranker_threshold.py:
 | test_example.py   | Runs a version of the model that you can query with arbitrary inputs for testing.        |
 | extract_embeddings.py   | Extract embeddings or rules from a specific checkpoint.        |
 | ranker_threshold.py   | Rank output embeddings and plot cosine score vs. ranking.        |
-| ----------- | ----------- |
 | models.py   | The three model definitions: MLP, GCN, and Attention.        |
 | losses.py   | Losses used for training.        |
 | dataloaders.py   | Code for loading the data.        |
