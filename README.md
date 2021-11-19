@@ -79,4 +79,4 @@ If you found our work useful, please cite:
 #### I'm still working on improving the repository.
 
 
-![Poster](Text2Mol_EMNLP_poster.png?raw=true)
+![Poster](https://github.com/cnedwards/text2mol/blob/master/misc/Text2Mol_EMNLP_poster.png?raw=true)
