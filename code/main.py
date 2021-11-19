@@ -32,7 +32,7 @@ text_trunc_length = 256
 
 mol_trunc_length = 512 #attention model only
 
-MODEL = "Attention"
+MODEL = "MLP"
 
 data_path = "../data"
 path_token_embs = osp.join(data_path, "token_embedding_dict.npy")
@@ -43,7 +43,7 @@ path_molecules = osp.join(data_path, "ChEBI_defintions_substructure_corpus.cp")
 
 graph_data_path = osp.join(data_path, "mol_graphs.zip")
 
-output_path = "Attention_outputs/"
+output_path = "MLP_outputs/"
 
 
 if MODEL == "MLP":
