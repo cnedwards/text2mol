@@ -7,6 +7,8 @@ This is code for the paper [Text2Mol: Cross-Modal Molecule Retrieval with Natura
 
 ![Task Example](https://github.com/cnedwards/text2mol/blob/master/misc/task2.PNG?raw=true)
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/text2mol-cross-modal-molecule-retrieval-with/cross-modal-retrieval-on-chebi-20)](https://paperswithcode.com/sota/cross-modal-retrieval-on-chebi-20?p=text2mol-cross-modal-molecule-retrieval-with)
+
 ### Installation
 
 Code is written in Python 3. Packages are shown in code/packages.txt. However, the following should suffice:
@@ -83,6 +85,7 @@ Data can be found in "data/". Files directly used in the dataloaders are "traini
 Thanks to [PubChem](https://pubchem.ncbi.nlm.nih.gov/) and [ChEBI](https://www.ebi.ac.uk/chebi/) for freely providing access to their databases. 
 
 #### I'm still working on improving the repository.
+
 
 
 ![Poster](https://github.com/cnedwards/text2mol/blob/master/misc/Text2Mol_EMNLP_poster.png?raw=true)
