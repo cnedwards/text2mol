@@ -67,7 +67,7 @@ To plot cosine score vs ranking:
 All code has been rewritten as Python files so far except association_rules.ipynb.
 
 
-#### Data: *ChEBI-20*
+### Data: *ChEBI-20*
 
 Data can be found in "data/". Files directly used in the dataloaders are "training.txt", "val.txt", and "test.txt". These include the CIDs (pubchem compound IDs), mol2vec embeddings, and ChEBI descriptions. SDF (structural data file) versions are also available. 
 
