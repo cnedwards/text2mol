@@ -76,7 +76,8 @@ Thanks to [PubChem](https://pubchem.ncbi.nlm.nih.gov/) and [ChEBI](https://www.e
 
 ### Citation
 If you found our work useful, please cite:
-```@inproceedings{edwards2021text2mol,
+```bibtex
+@inproceedings{edwards2021text2mol,
   title={Text2Mol: Cross-Modal Molecule Retrieval with Natural Language Queries},
   author={Edwards, Carl and Zhai, ChengXiang and Ji, Heng},
   booktitle={Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing},
