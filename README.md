@@ -66,23 +66,26 @@ To plot cosine score vs ranking:
 
 All code has been rewritten as Python files so far except association_rules.ipynb.
 
-### Citation
-If you found our work useful, please cite:
-> @inproceedings{edwards2021text2mol,
->   title={Text2Mol: Cross-Modal Molecule Retrieval with Natural Language Queries},
->   author={Edwards, Carl and Zhai, ChengXiang and Ji, Heng},
->   booktitle={Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing},
->   pages={595--607},
->   year={2021},
->   url = {https://aclanthology.org/2021.emnlp-main.47/}
-> }
-
 
 #### Data: *ChEBI-20*
 
 Data can be found in "data/". Files directly used in the dataloaders are "training.txt", "val.txt", and "test.txt". These include the CIDs (pubchem compound IDs), mol2vec embeddings, and ChEBI descriptions. SDF (structural data file) versions are also available. 
 
 Thanks to [PubChem](https://pubchem.ncbi.nlm.nih.gov/) and [ChEBI](https://www.ebi.ac.uk/chebi/) for freely providing access to their databases. 
+
+
+### Citation
+If you found our work useful, please cite:
+```@inproceedings{edwards2021text2mol,
+  title={Text2Mol: Cross-Modal Molecule Retrieval with Natural Language Queries},
+  author={Edwards, Carl and Zhai, ChengXiang and Ji, Heng},
+  booktitle={Proceedings of the 2021 Conference on Empirical Methods in Natural Language Processing},
+  pages={595--607},
+  year={2021},
+  url = {https://aclanthology.org/2021.emnlp-main.47/}
+}
+```
+
 
 #### I'm still working on improving the repository.
 
