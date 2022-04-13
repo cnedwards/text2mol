@@ -62,7 +62,7 @@ To get embeddings from a specific checkpoint:
 
 To plot cosine score vs ranking:
 
-> python code/ranker.py test_output/embeddings --train --val --test --output_file threshold_image.png
+> python code/ranker_threshold.py test_output/embeddings --train --val --test --output_file threshold_image.png
 
 All code has been rewritten as Python files so far except association_rules.ipynb.
 
