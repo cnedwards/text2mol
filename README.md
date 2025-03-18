@@ -18,7 +18,7 @@ Code is written in Python 3. Packages are shown in code/packages.txt. However, t
 > scikit-learn
 > numpy
 
-For processing .sdf files, we recommend [RDKit](https://www.rdkit.org/docs/GettingStartedInPython.html).
+For processing .sdf files, we recommend [RDKit](https://www.rdkit.org/docs/GettingStartedInPython.html). 
 
 For ranker_threshold.py:
 > matplotlib
@@ -69,7 +69,7 @@ All code has been rewritten as Python files so far except association_rules.ipyn
 
 ### Data: *ChEBI-20*
 
-Data can be found in "data/". Files directly used in the dataloaders are "training.txt", "val.txt", and "test.txt". These include the CIDs (pubchem compound IDs), mol2vec embeddings, and ChEBI descriptions. SDF (structural data file) versions are also available. 
+Data can be found in "data/". Files directly used in the dataloaders are "training.txt", "val.txt", and "test.txt". These include the CIDs (pubchem compound IDs), mol2vec embeddings, and ChEBI descriptions. SDF (structural data file) versions are also available. Only the zipped versions are currently available to avoid Git LFS. 
 
 Thanks to [PubChem](https://pubchem.ncbi.nlm.nih.gov/) and [ChEBI](https://www.ebi.ac.uk/chebi/) for freely providing access to their databases. 
 
